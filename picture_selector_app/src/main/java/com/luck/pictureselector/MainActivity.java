@@ -16,11 +16,13 @@ import android.widget.RadioGroup;
 import com.luck.picture.lib.model.FunctionConfig;
 import com.luck.picture.lib.model.LocalMediaLoader;
 import com.luck.picture.lib.model.PictureConfig;
-import com.luck.pictureselector.adapter.GridImageAdapter;
-import com.luck.pictureselector.util.FullyGridLayoutManager;
 import com.yalantis.ucrop.entity.LocalMedia;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.luck.pictureselector.R.id.et_h;
+import static com.luck.pictureselector.R.id.et_w;
 
 /**
  * author：luck
@@ -35,26 +37,29 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     private RecyclerView recyclerView;
     private GridImageAdapter adapter;
     private RadioGroup rgbs01, rgbs0, rgbs1, rgbs2, rgbs3, rgbs4, rgbs5, rgbs6, rgbs7, rgbs8, rgbs9, rgbs10;
-    private int selectMode = FunctionConfig.MODE_MULTIPLE;
-    private int maxSelectNum = 9;// 图片最大可选数量
-    private ImageButton minus, plus;
     private EditText select_num;
-    private EditText et_w, et_h, et_compress_width, et_compress_height;
-    private LinearLayout ll_luban_wh;
-    private boolean isShow = true;
-    private int selectType = LocalMediaLoader.TYPE_IMAGE;
-    private int copyMode = FunctionConfig.COPY_MODEL_DEFAULT;
-    private boolean enablePreview = true;
-    private boolean isPreviewVideo = true;
-    private boolean enableCrop = true;
-    private boolean theme = false;
-    private boolean selectImageType = false;
-    private int cropW = 0;
+    private int maxSelectNum = 9;// 图片最大可选数量
+    private ImageButton minus, plus;//减少     增加
+    private boolean isCheckNumMode = false;//普通选择模式还是QQ选择模式，默认普通选择模式
+    private int selectType = LocalMediaLoader.TYPE_IMAGE;//获取图片还是获取视频，默认获取图片
+    private int selectMode = FunctionConfig.MODE_MULTIPLE;//单选还是多选，默认是多选图片
+    private boolean isShow = true;//显示拍摄还是隐藏拍摄，默认显示拍摄
+    private int copyMode = FunctionConfig.COPY_MODEL_DEFAULT;//裁剪模式默认 没有裁剪
+    private boolean enablePreview = true;//预览图片还是禁止预览，默认预览图片
+    private boolean isPreviewVideo = true;//预览视频还是禁止预览，默认选中预览视频（播放）
+    private boolean enableCrop = true;//是否允许裁剪，默认允许裁剪
+    private EditText et_crop_w, et_crop_h;//裁剪宽高
+    private int cropW = 0;//裁剪的宽高
     private int cropH = 0;
-    private int compressW = 0;
+    private boolean theme = false;//默认主题还是蓝色主题，默认是选中默认主题
+    private boolean selectImageType = false;//默认图片选择样式还是自定义图片选择样式，默认是选中默认图片选择样式
+
+
+    private boolean isCompress = false;//默认不压缩图片
+    private EditText et_compress_width, et_compress_height; // 和  压缩的宽高
+    private LinearLayout ll_luban_wh;//鲁班压缩宽高所在布局
+    private int compressW = 0;//压缩的宽高
     private int compressH = 0;
-    private boolean isCompress = false;
-    private boolean isCheckNumMode = false;
     private int compressFlag = 1;// 1 系统自带压缩 2 luban压缩
     private List<LocalMedia> selectMedia = new ArrayList<>();
     private Context mContext;
@@ -80,13 +85,13 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
         ll_luban_wh = (LinearLayout) findViewById(R.id.ll_luban_wh);
         et_compress_width = (EditText) findViewById(R.id.et_compress_width);
         et_compress_height = (EditText) findViewById(R.id.et_compress_height);
-        et_w = (EditText) findViewById(R.id.et_w);
-        et_h = (EditText) findViewById(R.id.et_h);
+        et_crop_w = (EditText) findViewById(et_w);
+        et_crop_h = (EditText) findViewById(et_h);
         minus = (ImageButton) findViewById(R.id.minus);
         plus = (ImageButton) findViewById(R.id.plus);
         select_num = (EditText) findViewById(R.id.select_num);
         select_num.setText(maxSelectNum + "");
-        FullyGridLayoutManager manager = new FullyGridLayoutManager(MainActivity.this, 4, GridLayoutManager.VERTICAL, false);
+        FullyGridLayoutManager manager = new FullyGridLayoutManager(MainActivity.this, 4, GridLayoutManager.VERTICAL, false);//
         recyclerView.setLayoutManager(manager);
         adapter = new GridImageAdapter(MainActivity.this, onAddPicClickListener);
         adapter.setSelectMax(maxSelectNum);
@@ -121,7 +126,7 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 adapter.setSelectMax(maxSelectNum);
             }
         });
-
+        //RecyclerView的每一个Item的点击事件
         adapter.setOnItemClickListener(new GridImageAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(int position, View v) {
@@ -143,37 +148,44 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
                 case 0:
                     // 进入相册
                     /**
-                     * type --> 1图片 or 2视频
-                     * copyMode -->裁剪比例，默认、1:1、3:4、3:2、16:9
-                     * maxSelectNum --> 可选择图片的数量
-                     * selectMode         --> 单选 or 多选
-                     * isShow       --> 是否显示拍照选项 这里自动根据type 启动拍照或录视频
-                     * isPreview    --> 是否打开预览选项
-                     * isCrop       --> 是否打开剪切选项
-                     * isPreviewVideo -->是否预览视频(播放) mode or 多选有效
-                     * ThemeStyle -->主题颜色
-                     * CheckedBoxDrawable -->图片勾选样式
+                     * setImageSpanCount -->每行显示个数
+                     * setSelectMedia -->已选择的图片
+                     * setMaxSelectNum -->最大图片选择数量
+                     * setCheckNumMode -->普通选择模式还是QQ选择模式
+                     * setType --> 获取图片还是获取视频
+                     * setSelectMode --> 单选还是多选
+                     * setShowCamera  --> 显示拍摄还是隐藏拍摄 这里自动根据setType 启动拍照或录视频
+                     * setCopyMode -->裁剪比例，默认、1:1、3:4、3:2、16:9
                      * cropW-->裁剪宽度 值不能小于100  如果值大于图片原始宽高 将返回原图大小
                      * cropH-->裁剪高度 值不能小于100
-                     * isCompress -->是否压缩图片
-                     * setEnablePixelCompress 是否启用像素压缩
-                     * setEnableQualityCompress 是否启用质量压缩
-                     * setRecordVideoSecond 录视频的秒数，默认不限制
-                     * setRecordVideoDefinition 视频清晰度  Constants.HIGH 清晰  Constants.ORDINARY 低质量
-                     * setImageSpanCount -->每行显示个数
-                     * setCheckNumMode 是否显示QQ选择风格(带数字效果)
+                     * setEnablePreview  -->  预览图片还是禁止预览
+                     * setPreviewVideo -->是否预览视频(播放) mode or 多选有效
+                     * setEnableCrop   --> 是否打开剪切选项
+                     * setThemeStyle -->主题颜色
                      * setPreviewColor 预览文字颜色
                      * setCompleteColor 完成文字颜色
                      * setPreviewBottomBgColor 预览界面底部背景色
                      * setBottomBgColor 选择图片页面底部背景色
-                     * setCompressQuality 设置裁剪质量，默认无损裁剪
-                     * setSelectMedia 已选择的图片
+                     *
+                     * CheckedBoxDrawable -->图片勾选样式
+
+                     * setCompress -->是否压缩图片
+                     * setCompressW  --> 压缩的宽高
+                     * setCompressH  -->
+                     * setEnablePixelCompress 是否启用像素压缩
+                     * setEnableQualityCompress 是否启用质量压缩
+                     * setCompressQuality 设置压缩质量，默认无损压缩
                      * setCompressFlag 1为系统自带压缩  2为第三方luban压缩
-                     * 注意-->type为2时 设置isPreview or isCrop 无效
+                     *
+                     * setRecordVideoSecond 录视频的秒数，默认不限制
+                     * setRecordVideoDefinition 视频清晰度  Constants.HIGH 清晰  Constants.ORDINARY 低质量
+                     *
+                     * setCheckedBoxDrawable    相册中选中的样式
+                     * 注意-->setType为2，即视频的时 设置isPreview or isCrop 无效
                      * 注意：Options可以为空，默认标准模式
                      */
-                    String ws = et_w.getText().toString().trim();
-                    String hs = et_h.getText().toString().trim();
+                    String ws = et_crop_w.getText().toString().trim();
+                    String hs = et_crop_h.getText().toString().trim();
 
                     if (!isNull(ws) && !isNull(hs)) {
                         cropW = Integer.parseInt(ws);
@@ -187,39 +199,42 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
 
                     int selector = R.drawable.select_cb;
                     FunctionConfig config = new FunctionConfig();
-                    config.setType(selectType);
-                    config.setCopyMode(copyMode);
-                    config.setCompress(isCompress);
-                    config.setEnablePixelCompress(true);
-                    config.setEnableQualityCompress(true);
+                    config.setImageSpanCount(3);//相册每行显示个数
+                    config.setSelectMedia(selectMedia);//已选择的图片
                     config.setMaxSelectNum(maxSelectNum);
-                    config.setSelectMode(selectMode);
-                    config.setShowCamera(isShow);
-                    config.setEnablePreview(enablePreview);
-                    config.setEnableCrop(enableCrop);
-                    config.setPreviewVideo(isPreviewVideo);
-                    config.setRecordVideoDefinition(FunctionConfig.HIGH);// 视频清晰度
-                    config.setRecordVideoSecond(60);// 视频秒数
+                    config.setCheckNumMode(isCheckNumMode);//普通选择模式还是QQ选择模式
+                    config.setType(selectType);//获取图片还是获取视频
+                    config.setSelectMode(selectMode);//单选还是多选
+                    config.setShowCamera(isShow);//显示拍摄还是隐藏拍摄 这里自动根据setType 启动拍照或录视频
+                    config.setCopyMode(copyMode);//裁剪比例，默认、1:1、3:4、3:2、16:9
                     config.setCropW(cropW);
                     config.setCropH(cropH);
-                    config.setCheckNumMode(isCheckNumMode);
-                    config.setCompressQuality(100);
-                    config.setImageSpanCount(4);
-                    config.setSelectMedia(selectMedia);
-                    config.setCompressFlag(compressFlag);
-                    config.setCompressW(compressW);
-                    config.setCompressH(compressH);
+                    config.setEnablePreview(enablePreview);//预览图片还是禁止预览
+                    config.setPreviewVideo(isPreviewVideo);//是否预览视频(播放) mode or 多选有效
+                    config.setEnableCrop(enableCrop);//是否打开剪切选项
                     if (theme) {
-                        config.setThemeStyle(ContextCompat.getColor(MainActivity.this, R.color.blue));
+                        config.setThemeStyle(ContextCompat.getColor(MainActivity.this, R.color.blue));//主题颜色
                         // 可以自定义底部 预览 完成 文字的颜色和背景色
                         if (!isCheckNumMode) {
                             // QQ 风格模式下 这里自己搭配颜色，使用蓝色可能会不好看
-                            config.setPreviewColor(ContextCompat.getColor(MainActivity.this, R.color.white));
-                            config.setCompleteColor(ContextCompat.getColor(MainActivity.this, R.color.white));
-                            config.setPreviewBottomBgColor(ContextCompat.getColor(MainActivity.this, R.color.blue));
-                            config.setBottomBgColor(ContextCompat.getColor(MainActivity.this, R.color.blue));
+                            config.setPreviewColor(ContextCompat.getColor(MainActivity.this, R.color.white));//预览文字颜色
+                            config.setCompleteColor(ContextCompat.getColor(MainActivity.this, R.color.white));//完成文字颜色
+                            config.setPreviewBottomBgColor(ContextCompat.getColor(MainActivity.this, R.color.blue));//预览界面底部背景色
+                            config.setBottomBgColor(ContextCompat.getColor(MainActivity.this, R.color.blue));//选择图片页面底部背景色
                         }
                     }
+                    config.setCompress(isCompress);//是否压缩图片
+                    config.setCompressFlag(compressFlag);//1为系统自带压缩  2为第三方luban压缩
+                    config.setCompressW(compressW);
+                    config.setCompressH(compressH);
+                    config.setEnablePixelCompress(true);//是否启用像素压缩
+                    config.setEnableQualityCompress(true);//是否启用质量压缩
+                    config.setCompressQuality(100);//设置压缩质量，默认无损压缩
+
+                    config.setRecordVideoDefinition(FunctionConfig.HIGH);// 视频清晰度  Constants.HIGH 清晰  Constants.ORDINARY 低质量
+                    config.setRecordVideoSecond(60);// 视频秒数
+
+
                     if (selectImageType) {
                         config.setCheckedBoxDrawable(selector);
                     }
@@ -258,82 +273,83 @@ public class MainActivity extends Activity implements RadioGroup.OnCheckedChange
     public void onCheckedChanged(RadioGroup radioGroup, int i) {
         switch (i) {
             case R.id.rb_ordinary:
-                isCheckNumMode = false;
+                isCheckNumMode = false;//普通选择模式
                 break;
             case R.id.rb_qq:
-                isCheckNumMode = true;
-                break;
-            case R.id.rb_single:
-                selectMode = FunctionConfig.MODE_SINGLE;
-                break;
-            case R.id.rb_multiple:
-                selectMode = FunctionConfig.MODE_MULTIPLE;
+                isCheckNumMode = true;//QQ风格选择模式（带数字效果）
                 break;
             case R.id.rb_image:
-                selectType = LocalMediaLoader.TYPE_IMAGE;
+                selectType = LocalMediaLoader.TYPE_IMAGE;//获取图片
                 break;
             case R.id.rb_video:
-                selectType = LocalMediaLoader.TYPE_VIDEO;
+                selectType = LocalMediaLoader.TYPE_VIDEO;//获取视频
                 break;
-            case R.id.rb_photo_display:
+            case R.id.rb_single:
+                selectMode = FunctionConfig.MODE_SINGLE;//单选
+                break;
+            case R.id.rb_multiple:
+                selectMode = FunctionConfig.MODE_MULTIPLE;//多选
+                break;
+
+            case R.id.rb_photo_display://显示拍摄
                 isShow = true;
                 break;
-            case R.id.rb_photo_hide:
+            case R.id.rb_photo_hide://隐藏拍摄
                 isShow = false;
                 break;
             case R.id.rb_default:
-                copyMode = FunctionConfig.COPY_MODEL_DEFAULT;
+                copyMode = FunctionConfig.COPY_MODEL_DEFAULT;//默认
                 break;
             case R.id.rb_to1_1:
-                copyMode = FunctionConfig.COPY_MODEL_1_1;
+                copyMode = FunctionConfig.COPY_MODEL_1_1;//1:1裁剪
                 break;
             case R.id.rb_to3_2:
-                copyMode = FunctionConfig.COPY_MODEL_3_2;
+                copyMode = FunctionConfig.COPY_MODEL_3_2;//3:2裁剪
                 break;
             case R.id.rb_to3_4:
-                copyMode = FunctionConfig.COPY_MODEL_3_4;
+                copyMode = FunctionConfig.COPY_MODEL_3_4;//3:4裁剪
                 break;
             case R.id.rb_to16_9:
-                copyMode = FunctionConfig.COPY_MODEL_16_9;
+                copyMode = FunctionConfig.COPY_MODEL_16_9;//16:9裁剪
                 break;
             case R.id.rb_preview:
-                enablePreview = true;
+                enablePreview = true;//预览图片
                 break;
             case R.id.rb_preview_false:
-                enablePreview = false;
+                enablePreview = false;//禁止预览
                 break;
             case R.id.rb_preview_video:
-                isPreviewVideo = true;
+                isPreviewVideo = true;//预览视频（播放）
                 break;
             case R.id.rb_preview_video_false:
-                isPreviewVideo = false;
+                isPreviewVideo = false;//禁止预览
                 break;
             case R.id.rb_yes_copy:
-                enableCrop = true;
+                enableCrop = true;//允许裁剪
                 break;
             case R.id.rb_no_copy:
-                enableCrop = false;
+                enableCrop = false;//禁止裁剪
                 break;
             case R.id.rb_theme1:
-                theme = false;
+                theme = false; //默认主题
                 break;
             case R.id.rb_theme2:
-                theme = true;
+                theme = true;//蓝色主题
                 break;
             case R.id.rb_select1:
-                selectImageType = false;
+                selectImageType = false;//默认图片选择样式
                 break;
             case R.id.rb_select2:
-                selectImageType = true;
+                selectImageType = true;//自定义图片选择样式
                 break;
-            case R.id.rb_compress_false:
+            case R.id.rb_compress_false://默认不压缩图片
                 isCompress = false;
                 rgbs10.setVisibility(View.GONE);
                 ll_luban_wh.setVisibility(View.GONE);
                 et_compress_height.setText("");
                 et_compress_width.setText("");
                 break;
-            case R.id.rb_compress_true:
+            case R.id.rb_compress_true://压缩图片
                 isCompress = true;
                 if (compressFlag == 2) {
                     ll_luban_wh.setVisibility(View.VISIBLE);

@@ -12,8 +12,8 @@ import java.io.Serializable;
  */
 public class LocalMedia implements Serializable {
     private String path;
-    private String compressPath;
-    private String cutPath;
+    private String compressPath;//压缩路径
+    private String cutPath;//裁剪路径
     private long duration;
     private long lastUpdateAt;
     private boolean isChecked;

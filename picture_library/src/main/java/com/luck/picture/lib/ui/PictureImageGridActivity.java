@@ -254,7 +254,7 @@ public class PictureImageGridActivity extends PictureBaseActivity implements Vie
         } else if (id == R.id.tv_ok) {
             List<LocalMedia> images = adapter.getSelectedImages();
             if (enableCrop && type == LocalMediaLoader.TYPE_IMAGE && selectMode == FunctionConfig.MODE_MULTIPLE) {
-                // 是图片和选择压缩并且是多张，调用批量压缩
+                // 是图片和选择裁剪并且是多张，调用批量裁剪
                 startMultiCopy(images);
             } else {
                 // 图片才压缩，视频不管
@@ -441,7 +441,7 @@ public class PictureImageGridActivity extends PictureBaseActivity implements Vie
         if (medias != null && medias.size() > 0) {
             LocalMedia media = medias.get(0);
             String path = media.getPath();
-            // 去裁剪
+            // 去裁剪，
             MultiUCrop uCrop = MultiUCrop.of(Uri.parse(path), Uri.fromFile(new File(getCacheDir(), System.currentTimeMillis() + ".jpg")));
             MultiUCrop.Options options = new MultiUCrop.Options();
             switch (copyMode) {
